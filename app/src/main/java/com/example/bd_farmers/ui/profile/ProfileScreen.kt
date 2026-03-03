@@ -1,5 +1,8 @@
 package com.example.bd_farmers.ui.profile
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -28,12 +31,26 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.bd_farmers.ui.theme.ThemeManager
+import com.example.bd_farmers.viewmodel.AuthViewModel
 
 @Composable
-fun ProfileScreen(onLogout: () -> Unit) {
+fun ProfileScreen(
+    authViewModel: AuthViewModel,
+    onLogout: () -> Unit
+) {
     val scrollState = rememberScrollState()
     val isDark = ThemeManager.isDarkTheme
     val colors = MaterialTheme.colorScheme
+    
+    // Observe Firebase user
+    val user by authViewModel.userState.collectAsState()
+
+    // Image Picker Launcher
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { authViewModel.updateProfilePicture(it) }
+    }
 
     // Theme-adaptive colors
     val forestDeep = if (isDark) Color(0xFF00150A) else Color(0xFF0D2B1A)
@@ -81,7 +98,21 @@ fun ProfileScreen(onLogout: () -> Unit) {
                 }
             }
 
-            ProfileHeroCard(forestDeep, forestMid, mossGreen, vibrantGreen, goldAccent, goldLight, sageLight, colors)
+            // User Info Section
+            ProfileHeroCard(
+                userName = user?.displayName ?: "Guest User",
+                userEmail = user?.email ?: user?.phoneNumber ?: "Not logged in",
+                photoUrl = user?.photoUrl?.toString(),
+                onPickImage = { photoPickerLauncher.launch("image/*") },
+                forestDeep = forestDeep,
+                forestMid = forestMid,
+                mossGreen = mossGreen,
+                vibrantGreen = vibrantGreen,
+                goldAccent = goldAccent,
+                goldLight = goldLight,
+                sageLight = sageLight,
+                colors = colors
+            )
 
             Spacer(Modifier.height(24.dp))
 
@@ -134,7 +165,13 @@ fun ProfileScreen(onLogout: () -> Unit) {
 }
 
 @Composable
-private fun ProfileHeroCard(forestDeep: Color, forestMid: Color, mossGreen: Color, vibrantGreen: Color, goldAccent: Color, goldLight: Color, sageLight: Color, colors: ColorScheme) {
+private fun ProfileHeroCard(
+    userName: String,
+    userEmail: String,
+    photoUrl: String?,
+    onPickImage: () -> Unit,
+    forestDeep: Color, forestMid: Color, mossGreen: Color, vibrantGreen: Color, goldAccent: Color, goldLight: Color, sageLight: Color, colors: ColorScheme
+) {
     Surface(Modifier.fillMaxWidth().padding(horizontal = 22.dp), shape = RoundedCornerShape(28.dp), color = colors.surface, shadowElevation = 10.dp) {
         Box {
             Box(Modifier.fillMaxWidth().height(72.dp).clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)).background(Brush.horizontalGradient(listOf(forestDeep, forestMid, mossGreen))))
@@ -142,11 +179,38 @@ private fun ProfileHeroCard(forestDeep: Color, forestMid: Color, mossGreen: Colo
                 Spacer(Modifier.height(28.dp))
                 Box(Modifier.size(90.dp), Alignment.Center) {
                     Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(goldAccent, goldLight)), CircleShape))
-                    AsyncImage(model = ImageRequest.Builder(LocalContext.current).data("https://i.pravatar.cc/150?img=3").crossfade(true).build(), contentDescription = null, modifier = Modifier.size(82.dp).clip(CircleShape), contentScale = ContentScale.Crop)
+                    
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(photoUrl ?: "https://i.pravatar.cc/150?u=default")
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Avatar",
+                        modifier = Modifier
+                            .size(82.dp)
+                            .clip(CircleShape)
+                            .clickable { onPickImage() },
+                        contentScale = ContentScale.Crop
+                    )
+                    
+                    // Change Photo Button / Icon
+                    Box(
+                        Modifier
+                            .size(28.dp)
+                            .background(vibrantGreen, CircleShape)
+                            .border(2.dp, Color.White, CircleShape)
+                            .align(Alignment.BottomEnd)
+                            .clickable { onPickImage() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.CameraAlt, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                    }
                 }
+
                 Spacer(Modifier.height(12.dp))
-                Text("Abir Molla", fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = colors.onSurface)
-                Text("abir@example.com", fontSize = 13.sp, color = sageLight)
+
+                Text(userName, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = colors.onSurface)
+                Text(userEmail, fontSize = 13.sp, color = sageLight)
             }
         }
     }

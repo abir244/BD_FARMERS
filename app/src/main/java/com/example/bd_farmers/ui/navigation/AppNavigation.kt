@@ -1,5 +1,6 @@
 package com.example.bd_farmers.ui.navigation
 
+import android.app.Activity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -7,8 +8,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.*
 import com.example.bd_farmers.ui.auth.AuthScreen
+import com.example.bd_farmers.ui.auth.SplashScreen
 import com.example.bd_farmers.ui.cart.CartScreen
 import com.example.bd_farmers.ui.checkout.CheckoutScreen
 import com.example.bd_farmers.ui.components.BottomNavBar
@@ -30,46 +33,49 @@ fun AppNavigation(
     val cartItems by productViewModel.cartItems.collectAsState()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: "auth"
+    val currentRoute = navBackStackEntry?.destination?.route ?: "splash"
 
     val showBottomNav = currentRoute in listOf("home", "explore", "cart", "profile")
 
-    // Observe login token
-    val token by authViewModel.token.collectAsState(initial = null)
-    val startDestination = if (token.isNullOrEmpty()) "auth" else "home"
+    // Observe login state
+    val user by authViewModel.userState.collectAsState()
+    
+    val context = LocalContext.current
+    val activity = context as Activity
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background // Sync with theme
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        // To make it truly full screen and floating, we use a Box
         Box(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = navController,
-                startDestination = startDestination,
-                // We don't use innerPadding.bottom to allow content to flow behind navbar
+                startDestination = "splash",
                 modifier = Modifier.padding(top = innerPadding.calculateTopPadding())
             ) {
-                // Auth/Login
+                composable("splash") {
+                    SplashScreen(onAnimationFinished = {
+                        val nextDest = if (user == null) "auth" else "home"
+                        navController.navigate(nextDest) {
+                            popUpTo("splash") { inclusive = true }
+                        }
+                    })
+                }
+
                 composable("auth") {
-                    AuthScreen(authViewModel) {
-                        navController.navigate("home") {
-                            popUpTo("auth") { inclusive = true }
+                    AuthScreen(
+                        authViewModel = authViewModel,
+                        activity = activity,
+                        onAuthSuccess = {
+                            scope.launch { snackbarHostState.showSnackbar("Login successful") }
+                            navController.navigate("home") {
+                                popUpTo("auth") { inclusive = true }
+                            }
                         }
-                    }
+                    )
                 }
 
-                // Register screen
-                composable("register") {
-                    AuthScreen(authViewModel) {
-                        navController.navigate("home") {
-                            popUpTo("register") { inclusive = true }
-                        }
-                    }
-                }
-
-                // Home screen
                 composable("home") {
                     HomeScreen(
                         viewModel = productViewModel,
@@ -104,6 +110,7 @@ fun AppNavigation(
 
                 composable("profile") {
                     ProfileScreen(
+                        authViewModel = authViewModel,
                         onLogout = {
                             authViewModel.logout()
                             navController.navigate("auth") {

@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "190881125906",
+    "project_id": "bd-farmers",
+    "storage_bucket": "bd-farmers.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190881125906:android:bc716dc064fbc68199aacb",
+        "android_client_info": {
+          "package_name": "com.example.bd_farmers"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190881125906-c6gk1jr0qm5rkc7jper1altrab4fsadu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.bd_farmers",
+            "certificate_hash": "f17c7e7026db22c222e2da43247b1ee366152abc"
+          }
+        },
+        {
+          "client_id": "190881125906-aik20n706ov58n8aftt889ruifjldgii.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAOTVSHCTTd-5T-b9boXADs-WVIERRSHwM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190881125906-aik20n706ov58n8aftt889ruifjldgii.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

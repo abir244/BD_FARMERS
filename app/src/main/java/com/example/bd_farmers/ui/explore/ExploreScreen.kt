@@ -33,34 +33,35 @@ import com.example.bd_farmers.viewmodel.ProductViewModel
 
 @Composable
 fun ExploreScreen(viewModel: ProductViewModel) {
-    val categories       by viewModel.categories.collectAsState()
-    val products          = viewModel.filteredProducts()
-    val scrollState       = rememberScrollState()
+    val categories by viewModel.categories.collectAsState()
+    val products = viewModel.filteredProducts()
+    val scrollState = rememberScrollState()
 
-    var selectedChip  by remember { mutableIntStateOf(0) }
-    var selectedSort  by remember { mutableIntStateOf(0) }
-    var searchText    by remember { mutableStateOf("") }
+    var selectedChip by remember { mutableIntStateOf(0) }
+    var selectedSort by remember { mutableIntStateOf(0) }
+    var searchText by remember { mutableStateOf("") }
 
-    val colors = MaterialTheme.colorScheme
     val isDark = ThemeManager.isDarkTheme
+    val colors = MaterialTheme.colorScheme
     
-    // Theme-adaptive colors
-    val forestDeep = if (isDark) Color(0xFF00150A) else Color(0xFF0D2B1A)
+    // Standardized high-visibility palette
+    val forestDeep = if (isDark) Color(0xFFE8F5E9) else Color(0xFF0D2B1A)
+    val forestMid = if (isDark) Color(0xFFB9F6CA) else Color(0xFF1B5E38)
     val vibrantGreen = Color(0xFF2ECC71)
-    val sageLight = if (isDark) Color(0xFF6B8E7B) else Color(0xFF8FB99A)
+    val sageLight = if (isDark) Color(0xFFA5D6A7) else Color(0xFF8FB99A)
+    val ivoryWarm = if (isDark) Color(0xFF121212) else Color(0xFFF6F3EE)
     val goldAccent = Color(0xFFD4A853)
     val goldLight = Color(0xFFF0C96E)
 
-    // Data lists
     val filterChips = listOf(
-        FilterChip("All",        "🌿"),
+        FilterChip("All", "🌿"),
         FilterChip("Vegetables", "🥦"),
-        FilterChip("Fruits",     "🍎"),
-        FilterChip("Dairy",      "🥛"),
-        FilterChip("Grains",     "🌾"),
-        FilterChip("Spices",     "🌶️"),
-        FilterChip("Organic",    "✨"),
-        FilterChip("Honey",      "🍯"),
+        FilterChip("Fruits", "🍎"),
+        FilterChip("Dairy", "🥛"),
+        FilterChip("Grains", "🌾"),
+        FilterChip("Spices", "🌶️"),
+        FilterChip("Organic", "✨"),
+        FilterChip("Honey", "🍯"),
     )
     val sortOptions = listOf("Popular", "Newest", "Price ↑", "Price ↓", "Rating")
 
@@ -70,13 +71,13 @@ fun ExploreScreen(viewModel: ProductViewModel) {
     )
 
     Column(Modifier.fillMaxSize().background(colors.background)) {
-
-        // ── HEADER ──
+        // HEADER
         Box(
             Modifier
                 .fillMaxWidth()
                 .drawBehind {
-                    drawRect(Brush.verticalGradient(listOf(forestDeep, forestDeep.copy(alpha = 0.9f))))
+                    val headerBg = if (isDark) Color(0xFF00150A) else Color(0xFF0D2B1A)
+                    drawRect(Brush.verticalGradient(listOf(headerBg, headerBg.copy(alpha = 0.9f))))
                     drawCircle(
                         Brush.radialGradient(
                             listOf(vibrantGreen.copy(0.22f * pulse), Color.Transparent),
@@ -89,7 +90,7 @@ fun ExploreScreen(viewModel: ProductViewModel) {
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 22.dp)
-                    .padding(top = 52.dp, bottom = 20.dp)
+                    .padding(top = 32.dp, bottom = 20.dp) // Adjusted top padding
             ) {
                 Row(Modifier.fillMaxWidth(), Arrangement.SpaceBetween, Alignment.CenterVertically) {
                     Column {
@@ -125,13 +126,13 @@ fun ExploreScreen(viewModel: ProductViewModel) {
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedBorderColor    = Color.Transparent,
-                            focusedBorderColor      = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedBorderColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
-                            focusedContainerColor   = Color.Transparent,
-                            focusedTextColor        = Color.White,
-                            unfocusedTextColor      = Color.White,
-                            cursorColor             = vibrantGreen
+                            focusedContainerColor = Color.Transparent,
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = vibrantGreen
                         ),
                         textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
                     )
@@ -141,7 +142,7 @@ fun ExploreScreen(viewModel: ProductViewModel) {
 
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(filterChips) { idx, chip ->
-                        ChipFilter(chip, selectedChip == idx, vibrantGreen, forestDeep) {
+                        ChipFilter(chip, selectedChip == idx, vibrantGreen, if (isDark) Color(0xFF003300) else Color(0xFF0D2B1A)) {
                             selectedChip = idx
                             if (idx == 0) viewModel.onCategorySelected(null)
                             else categories.find { it.name.equals(chip.label, ignoreCase = true) }?.let { viewModel.onCategorySelected(it) }
@@ -154,7 +155,6 @@ fun ExploreScreen(viewModel: ProductViewModel) {
         Column(Modifier.fillMaxSize().verticalScroll(scrollState)) {
             Spacer(Modifier.height(22.dp))
             
-            // Fixed alignment for Results count and Sort chips
             Row(
                 Modifier.fillMaxWidth().padding(horizontal = 22.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -179,12 +179,12 @@ fun ExploreScreen(viewModel: ProductViewModel) {
             Spacer(Modifier.height(18.dp))
 
             if (products.isNotEmpty()) {
-                SpotlightCard(products.first(), viewModel, forestDeep, vibrantGreen, goldAccent, goldLight, sageLight)
+                SpotlightCard(products.first(), viewModel, if (isDark) Color(0xFF003300) else Color(0xFF0D2B1A), vibrantGreen, goldAccent, goldLight, sageLight)
                 Spacer(Modifier.height(22.dp))
             }
 
             Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-                Text("All Products", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = colors.onBackground)
+                Text("All Products", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = forestDeep)
                 Text("Sorted by: ${sortOptions[selectedSort]}", fontSize = 11.sp, color = sageLight)
             }
 

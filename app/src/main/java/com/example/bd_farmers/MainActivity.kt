@@ -17,6 +17,7 @@ import com.example.bd_farmers.ui.navigation.AppNavigation
 import com.example.bd_farmers.ui.theme.BdFarmersTheme
 import com.example.bd_farmers.viewmodel.AuthViewModel
 import com.example.bd_farmers.viewmodel.ProductViewModel
+import com.google.firebase.ktx.initialize
 
 class MainActivity : ComponentActivity() {
 
@@ -26,17 +27,22 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 @Suppress("UNCHECKED_CAST")
-                return AuthViewModel(AuthRepository("API_SERVICE", applicationContext)) as T
+                return AuthViewModel(AuthRepository(applicationContext)) as T
             }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        // Initialize Firebase
+        com.google.firebase.ktx.Firebase.initialize(this)
+
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT)
         )
-        super.onCreate(savedInstanceState)
+
         setContent {
             BdFarmersTheme {
                 Surface(

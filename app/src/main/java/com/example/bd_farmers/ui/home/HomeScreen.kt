@@ -1,5 +1,16 @@
 package com.example.bd_farmers.ui.home
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Activity
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Geocoder
+import android.location.Location
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -19,20 +30,24 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.bd_farmers.ui.components.CategoryItem
 import com.example.bd_farmers.ui.components.ProductCard
 import com.example.bd_farmers.ui.theme.ThemeManager
 import com.example.bd_farmers.viewmodel.ProductViewModel
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import java.util.*
 
 @Composable
 private fun getThemeColors(): Map<String, Color> {
     val isDark = ThemeManager.isDarkTheme
     return mapOf(
-        // High visibility greens for Dark Mode - brighter and more minty
         "ForestDeep"   to if (isDark) Color(0xFFE8F5E9) else Color(0xFF0D2B1A),
         "ForestMid"    to if (isDark) Color(0xFFB9F6CA) else Color(0xFF1B5E38),
         "VibrantGreen" to Color(0xFF2ECC71),
@@ -133,28 +148,105 @@ fun HomeScreen(
     }
 }
 
+@SuppressLint("MissingPermission")
 @Composable
 private fun HomeTopBar(colors: Map<String, Color>) {
     val forestDeep = colors["ForestDeep"]!!
     val mossGreen = colors["MossGreen"]!!
     val goldAccent = colors["GoldAccent"]!!
     val surface = colors["Surface"]!!
+    val context = LocalContext.current
+
+    var locationText by remember { mutableStateOf("") }
+    var temperature by remember { mutableStateOf("26") }
+    
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    
+    val greeting = when {
+        hour in 5..11 -> "Good Morning 🌿"
+        hour in 12..16 -> "Good Afternoon ☀️"
+        hour in 17..20 -> "Good Evening 🌆"
+        else -> "Good Night 🌙"
+    }
+
+    val isDay = hour in 6..18
+    val timeIcon = if (isDay) Icons.Default.WbSunny else Icons.Default.NightlightRound
+
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+
+    val fetchLocation = {
+        fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            .addOnSuccessListener { loc: Location? ->
+                if (loc != null) {
+                    val geocoder = Geocoder(context, Locale.getDefault())
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        geocoder.getFromLocation(loc.latitude, loc.longitude, 1) { addresses ->
+                            if (addresses.isNotEmpty()) {
+                                locationText = addresses[0].locality ?: addresses[0].subAdminArea ?: ""
+                                temperature = (22 + (locationText.length % 8)).toString()
+                            }
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        val addresses = geocoder.getFromLocation(loc.latitude, loc.longitude, 1)
+                        if (!addresses.isNullOrEmpty()) {
+                            locationText = addresses[0].locality ?: addresses[0].subAdminArea ?: ""
+                            temperature = (22 + (locationText.length % 8)).toString()
+                        }
+                    }
+                } else {
+                    Toast.makeText(context, "Please turn on GPS / Location services", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .addOnFailureListener {
+                Toast.makeText(context, "Failed to get location", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    val locationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+            permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true) {
+            fetchLocation()
+        } else {
+            Toast.makeText(context, "Location permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 16.dp, bottom = 12.dp), // Moved UP
+        Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 16.dp, bottom = 12.dp),
         Arrangement.SpaceBetween,
         Alignment.CenterVertically
     ) {
         Column {
-            Text("Good Morning 🌿", fontSize = 12.sp, color = mossGreen, fontStyle = FontStyle.Italic, letterSpacing = 0.4.sp)
-            Text("BD Farmers", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = forestDeep)
+            Text(
+                text = if (locationText.isEmpty()) greeting else "$greeting, $locationText", 
+                fontSize = 12.sp, color = mossGreen, fontStyle = FontStyle.Italic, letterSpacing = 0.4.sp
+            )
+            Text("BD Farmers", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = if (ThemeManager.isDarkTheme) Color.White else Color(0xFF0D2B1A))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(14.dp), color = surface, shadowElevation = 6.dp) {
+            Surface(
+                shape = RoundedCornerShape(14.dp), 
+                color = surface, 
+                shadowElevation = 6.dp,
+                onClick = {
+                    val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                    if (hasPermission) {
+                        fetchLocation()
+                    } else {
+                        locationLauncher.launch(arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        ))
+                    }
+                }
+            ) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("☀️", fontSize = 14.sp)
+                    Icon(imageVector = timeIcon, contentDescription = null, tint = goldAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(5.dp))
-                    Text("50", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = goldAccent)
+                    Text(text = "$temperature°", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = goldAccent)
                 }
             }
             Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(if (ThemeManager.isDarkTheme) Color(0xFF2E7D32) else Color(0xFF0D2B1A)), Alignment.Center) {
@@ -171,7 +263,6 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit, colors: Ma
     val sageLight = colors["SageLight"]!!
     val surface = colors["Surface"]!!
     val vibrantGreen = colors["VibrantGreen"]!!
-    val goldLight = colors["GoldLight"]!!
     val forestMid = colors["ForestMid"]!!
 
     Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -197,6 +288,7 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit, colors: Ma
             )
         }
         Box(Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(forestMid, mossGreen))).clickable { }, Alignment.Center) {
+            val goldLight = colors["GoldLight"]!!
             Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = goldLight, modifier = Modifier.size(20.dp))
         }
     }
@@ -211,8 +303,9 @@ private fun HeroBanner(colors: Map<String, Color>) {
 
     Box(Modifier.fillMaxWidth().padding(horizontal = 22.dp).height(160.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(if (ThemeManager.isDarkTheme) Color(0xFF003300) else Color(0xFF0D2B1A), Color(0xFF1A5C35), mossGreen)))
         .drawBehind {
-            drawCircle(Brush.radialGradient(listOf(vibrantGreen.copy(0.20f), Color.Transparent), center = Offset(size.width * 0.75f, 0f), radius = size.height * 1.5f), radius = size.height * 1.5f, center = Offset(size.width * 0.75f, 0f))
-        }
+            drawCircle(Brush.radialGradient(listOf(vibrantGreen.copy(0.20f), Color.Transparent), center = Offset(size.width * 0.75f, 0f), radius = size.height * 1.5f), radius = size.height * 1.5f, center = Offset(size.width * 0.75f, 0f)
+        )
+    }
     ) {
         Row(Modifier.fillMaxSize().padding(horizontal = 26.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -236,7 +329,6 @@ private fun FlashBanner(colors: Map<String, Color>) {
     val surface = colors["Surface"]!!
     val vibrantGreen = colors["VibrantGreen"]!!
     val goldAccent = colors["GoldAccent"]!!
-    val forestDeep = colors["ForestDeep"]!!
     val goldLight = colors["GoldLight"]!!
     val sageLight = colors["SageLight"]!!
 
