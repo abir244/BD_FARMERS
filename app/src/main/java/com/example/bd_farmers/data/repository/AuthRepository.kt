@@ -8,10 +8,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.google.firebase.auth.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.TimeUnit
 
 private val Context.dataStore by preferencesDataStore(name = "auth_prefs")
 
@@ -45,14 +45,22 @@ class AuthRepository(private val context: Context) {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             val uid = result.user?.uid ?: ""
+            // Optionally update profile name here
+            result.user?.updateProfile(userProfileChangeRequest { displayName = name })?.await()
             Result.success(uid)
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun signInWithCredential(credential: AuthCredential) {
-        auth.signInWithCredential(credential).await()
+    suspend fun signInWithCredential(credential: AuthCredential): Result<FirebaseUser> {
+        return try {
+            val result = auth.signInWithCredential(credential).await()
+            val user = result.user ?: throw Exception("Sign in failed")
+            Result.success(user)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     suspend fun logout() {
@@ -66,15 +74,15 @@ class AuthRepository(private val context: Context) {
     ) {
         val options = PhoneAuthOptions.newBuilder(auth)
             .setPhoneNumber(phoneNumber)
-            .setTimeout(60L, java.util.concurrent.TimeUnit.SECONDS)
+            .setTimeout(60L, TimeUnit.SECONDS)
             .setActivity(activity)
             .setCallbacks(callbacks)
             .build()
         PhoneAuthProvider.verifyPhoneNumber(options)
     }
 
-    suspend fun verifyOtp(verificationId: String, code: String) {
+    suspend fun verifyOtp(verificationId: String, code: String): Result<FirebaseUser> {
         val credential = PhoneAuthProvider.getCredential(verificationId, code)
-        auth.signInWithCredential(credential).await()
+        return signInWithCredential(credential)
     }
 }

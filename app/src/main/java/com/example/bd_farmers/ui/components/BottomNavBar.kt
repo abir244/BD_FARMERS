@@ -2,6 +2,7 @@ package com.example.bd_farmers.ui.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,7 +17,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.bd_farmers.R
@@ -48,7 +48,7 @@ fun BottomNavBar(
     val glassColor = if (isDark) {
         Color(0xFF1E1E1E).copy(alpha = 0.85f)
     } else {
-        Color.White.copy(alpha = 0.95f) // Solid white feel for light mode
+        Color.White.copy(alpha = 0.95f)
     }
     
     val borderColor = if (isDark) {
@@ -63,18 +63,19 @@ fun BottomNavBar(
         Color(0xFFE8F5E9).copy(alpha = 0.8f)
     }
 
+    val glowColor = if (isDark) Color(0xFF81C784).copy(alpha = 0.12f) else Color(0xFF2E7D32).copy(alpha = 0.08f)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 20.dp),
+            .padding(start = 24.dp, end = 24.dp, bottom = 24.dp), // Fixed padding syntax
         contentAlignment = Alignment.BottomCenter
     ) {
         Surface(
             modifier = Modifier
                 .wrapContentWidth()
-                .height(72.dp)
+                .height(80.dp)
                 .border(
                     width = 1.dp,
                     brush = Brush.verticalGradient(
@@ -84,30 +85,35 @@ fun BottomNavBar(
                 ),
             color = glassColor,
             shape = RoundedCornerShape(40.dp),
-            shadowElevation = if (isDark) 0.dp else 8.dp
+            shadowElevation = if (isDark) 0.dp else 10.dp
         ) {
             Row(
                 modifier = Modifier
-                    .padding(horizontal = 12.dp)
+                    .padding(horizontal = 16.dp)
                     .wrapContentWidth()
                     .fillMaxHeight(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 items.forEach { item ->
                     val isSelected = currentRoute == item.route
 
+                    // Faster animations: 150ms duration
                     val bgColor by animateColorAsState(
-                        if (isSelected) itemActiveColor else Color.Transparent, label = "bg_anim"
+                        targetValue = if (isSelected) itemActiveColor else Color.Transparent,
+                        animationSpec = tween(durationMillis = 150),
+                        label = "bg_anim"
                     )
                     val iconSize by animateDpAsState(
-                        if (isSelected) 26.dp else 22.dp, label = "size_anim"
+                        targetValue = if (isSelected) 30.dp else 26.dp,
+                        animationSpec = tween(durationMillis = 150),
+                        label = "size_anim"
                     )
 
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(28.dp))
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(32.dp))
                             .background(bgColor)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
@@ -153,7 +159,7 @@ private fun NavigationIcon(
                     contentColor = Color.White,
                     modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
                 ) {
-                    Text(cartCount.toString(), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(cartCount.toString(), fontSize = 10.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
             }
         }

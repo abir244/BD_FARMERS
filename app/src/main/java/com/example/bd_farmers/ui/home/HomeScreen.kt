@@ -42,16 +42,17 @@ import com.example.bd_farmers.ui.theme.ThemeManager
 import com.example.bd_farmers.viewmodel.ProductViewModel
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import kotlinx.coroutines.delay
 import java.util.*
 
 @Composable
 private fun getThemeColors(): Map<String, Color> {
     val isDark = ThemeManager.isDarkTheme
     return mapOf(
-        "ForestDeep"   to if (isDark) Color(0xFFE8F5E9) else Color(0xFF0D2B1A),
+        "ForestDeep"   to if (isDark) Color.White else Color(0xFF0D2B1A),
         "ForestMid"    to if (isDark) Color(0xFFB9F6CA) else Color(0xFF1B5E38),
         "VibrantGreen" to Color(0xFF2ECC71),
-        "MossGreen"    to if (isDark) Color(0xFF81C784) else Color(0xFF4A8C5C),
+        "MossGreen"    to if (isDark) Color(0xFFB9F6CA) else Color(0xFF4A8C5C),
         "SageLight"    to if (isDark) Color(0xFFA5D6A7) else Color(0xFF8FB99A),
         "IvoryWarm"    to if (isDark) Color(0xFF121212) else Color(0xFFF6F3EE),
         "GoldAccent"   to Color(0xFFD4A853),
@@ -67,7 +68,7 @@ private fun DrawScope.drawBg(pulse: Float, colors: Map<String, Color>) {
     val mossGreen = colors["MossGreen"]!!
     val ivoryWarm = colors["IvoryWarm"]!!
 
-    drawRect(Brush.verticalGradient(listOf(ivoryWarm, ivoryWarm, forestDeep.copy(alpha = 0.05f))))
+    drawRect(Brush.verticalGradient(listOf(ivoryWarm, ivoryWarm, if (ThemeManager.isDarkTheme) Color.Black else forestDeep.copy(alpha = 0.05f))))
     drawCircle(
         Brush.radialGradient(
             listOf(vibrantGreen.copy(0.13f * pulse), Color.Transparent),
@@ -86,13 +87,6 @@ private fun DrawScope.drawBg(pulse: Float, colors: Map<String, Color>) {
         radius = size.width * 0.65f,
         center = Offset(-size.width * 0.05f, size.height * 0.88f)
     )
-    val dotColor = if (ThemeManager.isDarkTheme) Color.White.copy(0.05f) else Color(0xFF0D2B1A).copy(0.032f)
-    val step = 32f
-    var x = step; while (x < size.width) {
-        var y = step; while (y < size.height) {
-            drawCircle(dotColor, 1.4f, Offset(x, y)); y += step
-        }; x += step
-    }
 }
 
 @Composable
@@ -118,9 +112,9 @@ fun HomeScreen(
             Column(Modifier.fillMaxSize().padding(pad).verticalScroll(scrollState)) {
                 HomeTopBar(colors)
                 Spacer(Modifier.height(4.dp))
-                SearchBar(searchQuery, viewModel::onSearchQueryChange, colors)
+                SearchSection(searchQuery, viewModel::onSearchQueryChange, colors)
                 Spacer(Modifier.height(20.dp))
-                HeroBanner(colors)
+                RotatingBanner(colors)
                 Spacer(Modifier.height(24.dp))
                 SectionHeader("Categories", onNavigateToExplore, colors)
                 Spacer(Modifier.height(10.dp))
@@ -169,9 +163,6 @@ private fun HomeTopBar(colors: Map<String, Color>) {
         else -> "Good Night 🌙"
     }
 
-    val isDay = hour in 6..18
-    val timeIcon = if (isDay) Icons.Default.WbSunny else Icons.Default.NightlightRound
-
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
     val fetchLocation = {
@@ -198,9 +189,6 @@ private fun HomeTopBar(colors: Map<String, Color>) {
                     Toast.makeText(context, "Please turn on GPS / Location services", Toast.LENGTH_SHORT).show()
                 }
             }
-            .addOnFailureListener {
-                Toast.makeText(context, "Failed to get location", Toast.LENGTH_SHORT).show()
-            }
     }
 
     val locationLauncher = rememberLauncherForActivityResult(
@@ -215,22 +203,25 @@ private fun HomeTopBar(colors: Map<String, Color>) {
     }
 
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 22.dp).padding(top = 16.dp, bottom = 12.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 22.dp)
+            .padding(top = 0.dp, bottom = 12.dp),
         Arrangement.SpaceBetween,
         Alignment.CenterVertically
     ) {
         Column {
+            Text("Farmer", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = forestDeep)
             Text(
                 text = if (locationText.isEmpty()) greeting else "$greeting, $locationText", 
                 fontSize = 12.sp, color = mossGreen, fontStyle = FontStyle.Italic, letterSpacing = 0.4.sp
             )
-            Text("BD Farmers", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = if (ThemeManager.isDarkTheme) Color.White else Color(0xFF0D2B1A))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(
                 shape = RoundedCornerShape(14.dp), 
                 color = surface, 
-                shadowElevation = 6.dp,
+                shadowElevation = 4.dp,
                 onClick = {
                     val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
                     if (hasPermission) {
@@ -244,26 +235,91 @@ private fun HomeTopBar(colors: Map<String, Color>) {
                 }
             ) {
                 Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val isDay = hour in 6..18
+                    val timeIcon = if (isDay) Icons.Default.WbSunny else Icons.Default.NightlightRound
                     Icon(imageVector = timeIcon, contentDescription = null, tint = goldAccent, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(5.dp))
                     Text(text = "$temperature°", fontWeight = FontWeight.ExtraBold, fontSize = 14.sp, color = goldAccent)
                 }
             }
-            Box(Modifier.size(42.dp).clip(RoundedCornerShape(14.dp)).background(if (ThemeManager.isDarkTheme) Color(0xFF2E7D32) else Color(0xFF0D2B1A)), Alignment.Center) {
-                Icon(imageVector = Icons.Outlined.Notifications, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                Box(Modifier.size(8.dp).background(Color(0xFFFF5252), CircleShape).align(Alignment.TopEnd).offset((-4).dp, 4.dp))
+            
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = surface,
+                shadowElevation = 4.dp
+            ) {
+                Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Outlined.Notifications, 
+                        contentDescription = null, 
+                        tint = if (ThemeManager.isDarkTheme) Color.White else Color(0xFF424242), 
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Box(
+                        Modifier
+                            .size(8.dp)
+                            .background(Color(0xFFFF5252), CircleShape)
+                            .align(Alignment.TopEnd)
+                            .offset((-6).dp, 6.dp)
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SearchBar(query: String, onQueryChange: (String) -> Unit, colors: Map<String, Color>) {
+private fun RotatingBanner(colors: Map<String, Color>) {
+    val banners = listOf(
+        BannerData("🌾 Direct from Farm", "Sell Direct, Earn More", "Join our farmer community today.", Color(0xFFFFF9C4), "🧑‍🌾"),
+        BannerData("🥦 Fresh Vegetables", "Quality Guaranteed", "Daily harvest from local farms.", Color(0xFFE8F5E9), "🥦"),
+        BannerData("🍎 Healthy Fruits", "Organic & Pure", "Sweetest picks of the season.", Color(0xFFFBE9E7), "🍎")
+    )
+    
+    var currentIndex by remember { mutableIntStateOf(0) }
+    
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(4000)
+            currentIndex = (currentIndex + 1) % banners.size
+        }
+    }
+    
+    val currentBanner = banners[currentIndex]
+    
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 22.dp)
+            .height(160.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(currentBanner.bgColor)
+    ) {
+        Row(Modifier.fillMaxSize().padding(horizontal = 26.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Surface(color = Color(0xFF2E7D32).copy(0.15f), shape = RoundedCornerShape(8.dp)) {
+                    Text(currentBanner.tag, fontSize = 10.sp, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                }
+                Spacer(Modifier.height(10.dp))
+                Text(currentBanner.title, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0D2B1A), lineHeight = 28.sp)
+                Spacer(Modifier.height(4.dp))
+                Text(currentBanner.desc, fontSize = 12.sp, color = Color.Gray)
+            }
+            Text(currentBanner.emoji, fontSize = 70.sp)
+        }
+    }
+}
+
+private data class BannerData(val tag: String, val title: String, val desc: String, val bgColor: Color, val emoji: String)
+
+@Composable
+private fun SearchSection(query: String, onQueryChange: (String) -> Unit, colors: Map<String, Color>) {
     val mossGreen = colors["MossGreen"]!!
     val sageLight = colors["SageLight"]!!
     val surface = colors["Surface"]!!
     val vibrantGreen = colors["VibrantGreen"]!!
     val forestMid = colors["ForestMid"]!!
+    val onSurface = colors["OnSurface"]!!
 
     Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Surface(Modifier.weight(1f), shape = RoundedCornerShape(18.dp), color = surface, shadowElevation = 8.dp) {
@@ -280,46 +336,22 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit, colors: Ma
                     focusedBorderColor      = Color.Transparent,
                     unfocusedContainerColor = Color.Transparent,
                     focusedContainerColor   = Color.Transparent,
-                    focusedTextColor        = if (ThemeManager.isDarkTheme) Color.White else Color.Black,
-                    unfocusedTextColor      = if (ThemeManager.isDarkTheme) Color.White else Color.Black,
+                    focusedTextColor        = onSurface,
+                    unfocusedTextColor      = onSurface,
                     cursorColor             = vibrantGreen
                 ),
                 textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
             )
         }
-        Box(Modifier.size(52.dp).clip(RoundedCornerShape(18.dp)).background(Brush.linearGradient(listOf(forestMid, mossGreen))).clickable { }, Alignment.Center) {
-            val goldLight = colors["GoldLight"]!!
-            Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = goldLight, modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
-@Composable
-private fun HeroBanner(colors: Map<String, Color>) {
-    val mossGreen = colors["MossGreen"]!!
-    val vibrantGreen = colors["VibrantGreen"]!!
-    val goldAccent = colors["GoldAccent"]!!
-    val goldLight = colors["GoldLight"]!!
-
-    Box(Modifier.fillMaxWidth().padding(horizontal = 22.dp).height(160.dp).clip(RoundedCornerShape(28.dp)).background(Brush.linearGradient(listOf(if (ThemeManager.isDarkTheme) Color(0xFF003300) else Color(0xFF0D2B1A), Color(0xFF1A5C35), mossGreen)))
-        .drawBehind {
-            drawCircle(Brush.radialGradient(listOf(vibrantGreen.copy(0.20f), Color.Transparent), center = Offset(size.width * 0.75f, 0f), radius = size.height * 1.5f), radius = size.height * 1.5f, center = Offset(size.width * 0.75f, 0f)
-        )
-    }
-    ) {
-        Row(Modifier.fillMaxSize().padding(horizontal = 26.dp, vertical = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Surface(color = goldAccent.copy(0.22f), shape = RoundedCornerShape(8.dp)) {
-                    Text("🌾 For Farmers", fontSize = 10.sp, color = goldLight, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
-                }
-                Spacer(Modifier.height(10.dp))
-                Text("Sell Direct,\nEarn More", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = Color.White, lineHeight = 28.sp)
-                Spacer(Modifier.height(8.dp))
-                Box(Modifier.clip(RoundedCornerShape(10.dp)).background(goldAccent).clickable { }.padding(horizontal = 16.dp, vertical = 7.dp)) {
-                    Text("Join Now →", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                }
-            }
-            Text("🧑‍🌾", fontSize = 70.sp)
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(Brush.linearGradient(listOf(forestMid, mossGreen)))
+                .clickable { },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -329,6 +361,7 @@ private fun FlashBanner(colors: Map<String, Color>) {
     val surface = colors["Surface"]!!
     val vibrantGreen = colors["VibrantGreen"]!!
     val goldAccent = colors["GoldAccent"]!!
+    val forestDeep = colors["ForestDeep"]!!
     val goldLight = colors["GoldLight"]!!
     val sageLight = colors["SageLight"]!!
 
@@ -341,7 +374,7 @@ private fun FlashBanner(colors: Map<String, Color>) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("⚡", fontSize = 16.sp)
                         Spacer(Modifier.width(6.dp))
-                        Text("Flash Deals", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = if (ThemeManager.isDarkTheme) Color.White else Color(0xFF0D2B1A))
+                        Text("Flash Deals", fontWeight = FontWeight.ExtraBold, fontSize = 15.sp, color = forestDeep)
                     }
                     Text("Up to 40% off · Ends tonight", fontSize = 11.sp, color = sageLight, modifier = Modifier.padding(top = 2.dp))
                 }
@@ -355,11 +388,12 @@ private fun FlashBanner(colors: Map<String, Color>) {
 
 @Composable
 fun SectionHeader(title: String, onSeeAll: () -> Unit, colors: Map<String, Color>) {
+    val forestDeep = colors["ForestDeep"]!!
     val forestMid = colors["ForestMid"]!!
     val vibrantGreen = colors["VibrantGreen"]!!
 
     Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-        Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = if (ThemeManager.isDarkTheme) Color.White else Color(0xFF0D2B1A))
+        Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = forestDeep)
         Row(Modifier.clip(RoundedCornerShape(8.dp)).background(vibrantGreen.copy(0.10f)).clickable { onSeeAll() }.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("View all", color = forestMid, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = forestMid, modifier = Modifier.size(15.dp))

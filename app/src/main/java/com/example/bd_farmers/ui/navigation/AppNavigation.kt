@@ -35,13 +35,22 @@ fun AppNavigation(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "splash"
 
+    // Strictly define which routes show the bottom nav
     val showBottomNav = currentRoute in listOf("home", "explore", "cart", "profile")
 
     // Observe login state
     val user by authViewModel.userState.collectAsState()
     
     val context = LocalContext.current
-    val activity = context as Activity
+    // Safely get Activity from context
+    val activity = remember(context) {
+        var c = context
+        while (c is android.content.ContextWrapper) {
+            if (c is Activity) break
+            c = c.baseContext
+        }
+        c as? Activity
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -64,16 +73,18 @@ fun AppNavigation(
                 }
 
                 composable("auth") {
-                    AuthScreen(
-                        authViewModel = authViewModel,
-                        activity = activity,
-                        onAuthSuccess = {
-                            scope.launch { snackbarHostState.showSnackbar("Login successful") }
-                            navController.navigate("home") {
-                                popUpTo("auth") { inclusive = true }
+                    if (activity != null) {
+                        AuthScreen(
+                            authViewModel = authViewModel,
+                            activity = activity,
+                            onAuthSuccess = {
+                                scope.launch { snackbarHostState.showSnackbar("Login successful") }
+                                navController.navigate("home") {
+                                    popUpTo("auth") { inclusive = true }
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
 
                 composable("home") {
@@ -121,15 +132,19 @@ fun AppNavigation(
                 }
             }
 
+            // Only show BottomNavBar if we are not on splash/auth
             if (showBottomNav) {
                 Box(modifier = Modifier.align(Alignment.BottomCenter)) {
                     BottomNavBar(
                         currentRoute = currentRoute,
                         onNavigate = { route ->
-                            navController.navigate(route) {
-                                popUpTo("home") { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
+                            if (currentRoute != route) {
+                                navController.navigate(route) {
+                                    // Optimized popUpTo for faster transitions
+                                    popUpTo("home") { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
                             }
                         },
                         cartCount = cartItems.sumOf { it.quantity }
