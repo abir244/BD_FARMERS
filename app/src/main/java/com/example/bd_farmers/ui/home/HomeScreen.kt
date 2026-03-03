@@ -11,6 +11,7 @@ import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -49,6 +50,8 @@ import java.util.*
 private fun getThemeColors(): Map<String, Color> {
     val isDark = ThemeManager.isDarkTheme
     return mapOf(
+        // High visibility colors for Dark Mode
+        "FarmerTitle"  to if (isDark) Color(0xFF81C784) else Color(0xFF2E7D32),
         "ForestDeep"   to if (isDark) Color.White else Color(0xFF0D2B1A),
         "ForestMid"    to if (isDark) Color(0xFFB9F6CA) else Color(0xFF1B5E38),
         "VibrantGreen" to Color(0xFF2ECC71),
@@ -108,36 +111,33 @@ fun HomeScreen(
     )
 
     Box(Modifier.fillMaxSize().drawBehind { drawBg(pulse, colors) }) {
-        Scaffold(containerColor = Color.Transparent) { pad ->
-            Column(Modifier.fillMaxSize().padding(pad).verticalScroll(scrollState)) {
-                HomeTopBar(colors)
-                Spacer(Modifier.height(4.dp))
-                SearchSection(searchQuery, viewModel::onSearchQueryChange, colors)
-                Spacer(Modifier.height(20.dp))
-                RotatingBanner(colors)
-                Spacer(Modifier.height(24.dp))
-                SectionHeader("Categories", onNavigateToExplore, colors)
-                Spacer(Modifier.height(10.dp))
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(categories) { cat ->
-                        CategoryItem(
-                            category = cat,
-                            isSelected = selectedCategory == cat,
-                            onClick = { viewModel.onCategorySelected(cat) }
-                        )
-                    }
+        Column(Modifier.fillMaxSize().verticalScroll(scrollState).padding(bottom = 100.dp)) {
+            HomeTopBar(colors)
+            Spacer(Modifier.height(12.dp))
+            SearchSection(searchQuery, viewModel::onSearchQueryChange, colors)
+            Spacer(Modifier.height(20.dp))
+            RotatingBanner(colors)
+            Spacer(Modifier.height(24.dp))
+            SectionHeader("Categories", onNavigateToExplore, colors)
+            Spacer(Modifier.height(10.dp))
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(categories) { cat ->
+                    CategoryItem(
+                        category = cat,
+                        isSelected = selectedCategory == cat,
+                        onClick = { viewModel.onCategorySelected(cat) }
+                    )
                 }
-                Spacer(Modifier.height(24.dp))
-                FlashBanner(colors)
-                Spacer(Modifier.height(24.dp))
-                SectionHeader("Fresh Picks", onNavigateToExplore, colors)
-                Spacer(Modifier.height(12.dp))
-                ProductGrid(viewModel)
-                Spacer(Modifier.height(120.dp))
             }
+            Spacer(Modifier.height(24.dp))
+            FlashBanner(colors)
+            Spacer(Modifier.height(24.dp))
+            SectionHeader("Fresh Picks", onNavigateToExplore, colors)
+            Spacer(Modifier.height(12.dp))
+            ProductGrid(viewModel)
         }
     }
 }
@@ -145,7 +145,7 @@ fun HomeScreen(
 @SuppressLint("MissingPermission")
 @Composable
 private fun HomeTopBar(colors: Map<String, Color>) {
-    val forestDeep = colors["ForestDeep"]!!
+    val farmerTitle = colors["FarmerTitle"]!!
     val mossGreen = colors["MossGreen"]!!
     val goldAccent = colors["GoldAccent"]!!
     val surface = colors["Surface"]!!
@@ -206,18 +206,31 @@ private fun HomeTopBar(colors: Map<String, Color>) {
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 22.dp)
-            .padding(top = 0.dp, bottom = 12.dp),
+            .padding(top = 12.dp, bottom = 12.dp),
         Arrangement.SpaceBetween,
-        Alignment.CenterVertically
+        Alignment.Top
     ) {
         Column {
-            Text("Farmer", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = forestDeep)
+            Box(contentAlignment = Alignment.TopStart) {
+                Text(
+                    text = "Farmer",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = farmerTitle,
+                    modifier = Modifier.padding(top = 8.dp, start = 2.dp)
+                )
+                Text(
+                    text = "🤠",
+                    fontSize = 20.sp,
+                    modifier = Modifier.offset(x = (-8).dp, y = (-2).dp)
+                )
+            }
             Text(
                 text = if (locationText.isEmpty()) greeting else "$greeting, $locationText", 
                 fontSize = 12.sp, color = mossGreen, fontStyle = FontStyle.Italic, letterSpacing = 0.4.sp
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(
                 shape = RoundedCornerShape(14.dp), 
                 color = surface, 
@@ -269,6 +282,49 @@ private fun HomeTopBar(colors: Map<String, Color>) {
 }
 
 @Composable
+private fun SearchSection(query: String, onQueryChange: (String) -> Unit, colors: Map<String, Color>) {
+    val mossGreen = colors["MossGreen"]!!
+    val sageLight = colors["SageLight"]!!
+    val surface = colors["Surface"]!!
+    val vibrantGreen = colors["VibrantGreen"]!!
+    val onSurface = colors["OnSurface"]!!
+
+    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(Modifier.weight(1f), shape = RoundedCornerShape(18.dp), color = surface, shadowElevation = 8.dp) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                placeholder = { Text("Search fresh produce…", color = sageLight, fontSize = 13.sp) },
+                leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = mossGreen, modifier = Modifier.size(20.dp)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                shape = RoundedCornerShape(18.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor    = Color.Transparent,
+                    focusedBorderColor      = Color.Transparent,
+                    unfocusedContainerColor = Color.Transparent,
+                    focusedContainerColor   = Color.Transparent,
+                    focusedTextColor        = onSurface,
+                    unfocusedTextColor      = onSurface,
+                    cursorColor             = vibrantGreen
+                ),
+                textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(Brush.linearGradient(listOf(colors["ForestMid"]!!, mossGreen)))
+                .clickable { },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+@Composable
 private fun RotatingBanner(colors: Map<String, Color>) {
     val banners = listOf(
         BannerData("🌾 Direct from Farm", "Sell Direct, Earn More", "Join our farmer community today.", Color(0xFFFFF9C4), "🧑‍🌾"),
@@ -280,7 +336,7 @@ private fun RotatingBanner(colors: Map<String, Color>) {
     
     LaunchedEffect(Unit) {
         while (true) {
-            delay(4000)
+            delay(6000)
             currentIndex = (currentIndex + 1) % banners.size
         }
     }
@@ -311,50 +367,6 @@ private fun RotatingBanner(colors: Map<String, Color>) {
 }
 
 private data class BannerData(val tag: String, val title: String, val desc: String, val bgColor: Color, val emoji: String)
-
-@Composable
-private fun SearchSection(query: String, onQueryChange: (String) -> Unit, colors: Map<String, Color>) {
-    val mossGreen = colors["MossGreen"]!!
-    val sageLight = colors["SageLight"]!!
-    val surface = colors["Surface"]!!
-    val vibrantGreen = colors["VibrantGreen"]!!
-    val forestMid = colors["ForestMid"]!!
-    val onSurface = colors["OnSurface"]!!
-
-    Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Surface(Modifier.weight(1f), shape = RoundedCornerShape(18.dp), color = surface, shadowElevation = 8.dp) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                placeholder = { Text("Search fresh produce…", color = sageLight, fontSize = 13.sp) },
-                leadingIcon = { Icon(imageVector = Icons.Default.Search, contentDescription = null, tint = mossGreen, modifier = Modifier.size(20.dp)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(18.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor    = Color.Transparent,
-                    focusedBorderColor      = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedContainerColor   = Color.Transparent,
-                    focusedTextColor        = onSurface,
-                    unfocusedTextColor      = onSurface,
-                    cursorColor             = vibrantGreen
-                ),
-                textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
-            )
-        }
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(Brush.linearGradient(listOf(forestMid, mossGreen)))
-                .clickable { },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(imageVector = Icons.Default.Tune, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-        }
-    }
-}
 
 @Composable
 private fun FlashBanner(colors: Map<String, Color>) {
@@ -388,12 +400,11 @@ private fun FlashBanner(colors: Map<String, Color>) {
 
 @Composable
 fun SectionHeader(title: String, onSeeAll: () -> Unit, colors: Map<String, Color>) {
-    val forestDeep = colors["ForestDeep"]!!
     val forestMid = colors["ForestMid"]!!
     val vibrantGreen = colors["VibrantGreen"]!!
 
     Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), Arrangement.SpaceBetween, Alignment.CenterVertically) {
-        Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = forestDeep)
+        Text(title, fontWeight = FontWeight.ExtraBold, fontSize = 20.sp, color = if (ThemeManager.isDarkTheme) Color.White else Color(0xFF0D2B1A))
         Row(Modifier.clip(RoundedCornerShape(8.dp)).background(vibrantGreen.copy(0.10f)).clickable { onSeeAll() }.padding(horizontal = 10.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("View all", color = forestMid, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             Icon(imageVector = Icons.Default.ChevronRight, contentDescription = null, tint = forestMid, modifier = Modifier.size(15.dp))

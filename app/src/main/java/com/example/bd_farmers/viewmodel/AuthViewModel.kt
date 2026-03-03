@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.bd_farmers.data.repository.AuthRepository
 import com.google.firebase.auth.*
-import com.google.firebase.auth.userProfileChangeRequest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -68,11 +67,15 @@ class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
         }
     }
 
-    fun loginWithGoogle(idToken: String) {
-        val credential = GoogleAuthProvider.getCredential(idToken, null)
+    fun signInWithCredential(credential: AuthCredential) {
         viewModelScope.launch {
             repo.signInWithCredential(credential)
         }
+    }
+
+    fun loginWithGoogle(idToken: String) {
+        val credential = GoogleAuthProvider.getCredential(idToken, null)
+        signInWithCredential(credential)
     }
 
     fun updateProfilePicture(uri: Uri) {
@@ -84,10 +87,7 @@ class AuthViewModel(private val repo: AuthRepository) : ViewModel() {
         viewModelScope.launch {
             try {
                 user?.updateProfile(profileUpdates)?.await()
-                // Force a state update by notifying repository or re-fetching user
-                repo.logout() // This is a bit hacky to trigger the flow, but usually you'd have a better way
-                // Better: repo just emits the same UID again
-                // For simplicity in this demo, let's assume the UI will re-read currentUser
+                // The AuthStateListener in Repository will trigger userState update
             } catch (e: Exception) {
                 e.printStackTrace()
             }
